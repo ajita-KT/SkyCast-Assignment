@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -43,9 +44,14 @@ const HomeScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [searchQuery, dispatch]);
 
-  // Fetch current weather for favorites
+  // Fetch current weather for favorites (only if not already cached)
   const fetchFavoritesWeather = useCallback(async () => {
     for (const city of favorites) {
+      // Skip if weather already exists in Redux (cached for this session)
+      if (city.currentWeather) {
+        continue;
+      }
+
       try {
         const weather = await fetchCurrentWeather(city.latitude, city.longitude);
         dispatch(updateFavoriteWeather({ cityId: city.id, weather }));
@@ -55,17 +61,12 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [favorites, dispatch]);
 
-  useEffect(() => {
-    fetchFavoritesWeather();
-  }, []);
-
-  // Refresh favorites weather when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+  // Fetch favorites weather when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
       fetchFavoritesWeather();
-    });
-    return unsubscribe;
-  }, [navigation, fetchFavoritesWeather]);
+    }, [fetchFavoritesWeather])
+  );
 
   const handleCityPress = (city) => {
     setSearchQuery('');
